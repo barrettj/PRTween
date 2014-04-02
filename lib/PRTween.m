@@ -1,3 +1,5 @@
+#import "PRTween.h"
+
 #define kPRTweenFramerate 1.0/60
 
 @implementation PRTweenPeriod
