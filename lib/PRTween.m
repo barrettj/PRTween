@@ -842,16 +842,18 @@ static NSArray *animationSelectorsForUIView        = nil;
         tweenOperations        = [[NSMutableArray alloc] init];
         expiredTweenOperations = [[NSMutableArray alloc] init];
         timeOffset             = 0;
-        if (timer == nil) {
-            timer = [NSTimer scheduledTimerWithTimeInterval:kPRTweenFramerate target:self selector:@selector(update) userInfo:nil repeats:YES];
-        }
         self.defaultTimingFunction = &PRTweenTimingFunctionQuadInOut;
     }
     return self;
 }
 
 - (PRTweenOperation *)addTweenOperation:(PRTweenOperation *)operation {
-
+    // create new timer if there are no operations running
+    if (timer == nil) {
+        lastAbsoluteTime = 0;
+        timer = [NSTimer scheduledTimerWithTimeInterval:kPRTweenFramerate target:self selector:@selector(update) userInfo:nil repeats:YES];
+    }
+    
     if (useBuiltInAnimationsWhenPossible && !operation.override) {
 
         if (animationSelectorsForCoreAnimation == nil) {
@@ -1061,8 +1063,10 @@ static NSArray *animationSelectorsForUIView        = nil;
 }
 
 - (void)update {
-    timeOffset += kPRTweenFramerate;
-
+    // increase the timeOffset by the actual amount of time that has passed
+    timeOffset += (lastAbsoluteTime == 0) ? kPRTweenFramerate : (CFAbsoluteTimeGetCurrent() - lastAbsoluteTime);
+    lastAbsoluteTime = CFAbsoluteTimeGetCurrent();
+    
     for (PRTweenOperation *tweenOperation in tweenOperations) {
 
         PRTweenPeriod *period = tweenOperation.period;
@@ -1146,6 +1150,12 @@ static NSArray *animationSelectorsForUIView        = nil;
         tweenOperation = nil;
     }
     [expiredTweenOperations removeAllObjects];
+    
+    // remove timer if all operations have finished
+    if (tweenOperations.count == 0) {
+        [timer invalidate];
+        timer = nil;
+    }
 }
 
 - (void)dealloc {
